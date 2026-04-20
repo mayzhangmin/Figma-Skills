@@ -5,7 +5,7 @@
 This is the canonical workflow for reconnecting existing Figma designs to a published design system. It handles multi-section migrations with dependency-aware sequencing, composition from primitives, and rigorous validation of library-backed results.
 
 **Version:** Enhanced  
-**Last Updated:** 2026
+**Last Updated:** 20 April 2026
 
 ---
 
