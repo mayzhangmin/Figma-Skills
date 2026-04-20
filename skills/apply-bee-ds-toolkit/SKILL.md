@@ -1,0 +1,149 @@
+---
+name: apply-bee-ds-toolkit
+description: "Use when migrating an existing Figma screen, frame, or section onto Bee-DS Toolkit, including Bee-DS library selection, Bee-specific family choice for buttons and fields, Bee icon handling, and cleanup of detached text around Bee-backed sections."
+---
+
+# Apply Bee-DS Toolkit To An Existing Design
+
+Use this skill when the user wants an existing Figma screen, frame, or section migrated onto Bee-DS Toolkit instead of detached layers, local wrappers, or ad-hoc components.
+
+This is a Bee-DS-specific specialization of [apply-design-system](../apply-design-system/SKILL.md).
+
+Follow the full migration workflow in [apply-design-system](../apply-design-system/SKILL.md) for scope selection, import gating, backup, section inventory, dependency planning, swap versus composition strategy, blocker handling, and validation. This skill adds only Bee-specific rules, defaults, and pitfalls.
+
+## Use This Skill For
+
+- requests such as `apply Bee-DS`, `apply Bee-DS Toolkit`, `move this screen to Bee-DS`, or `connect this frame to Bee-DS`
+- repeated migration passes across product screens that should use the Bee-DS library family
+- Bee-DS button, dropdown, input, or icon replacement work where the generic skill needs Bee-specific family guidance
+
+## Load First
+
+- [apply-design-system](../apply-design-system/SKILL.md)
+- `figma-use` before any `use_figma` write call
+- normal Figma MCP inspection tools such as `get_metadata`, `get_screenshot`, and `search_design_system`
+
+## Bee-DS Target Libraries
+
+Prefer these libraries in this order:
+1. `Bee-DS Toolkit`
+2. `Bee-DS Icon Library`
+3. older `Bee-DS` results only when Toolkit does not expose the needed family and the user accepts the fallback
+
+Do not mix similarly named search results casually. Verify the library name before importing.
+
+## Reference Libraries
+
+Use these canonical Figma files for direct library inspection when search results are noisy, variant choice is ambiguous, or you need to verify the published Bee-DS source manually.
+
+- `Bee-DS Toolkit`: https://www.figma.com/design/oJgba28Kg7nFW0P1FLJfS5/Bee-DS-Toolkit
+- `Bee-DS Icon Library`: https://www.figma.com/design/sSLTAUrPkxqw72ecpGMxDE/Bee-DS-Icon-Library
+
+Treat these links as inspection references, not the primary source of truth.
+Library name, import success, and exact component or component-set keys still take precedence when making migration decisions.
+
+## Bee-DS Overrides To The Base Workflow
+
+Apply these Bee-specific rules while following the base skill.
+
+### Import Choice
+
+For the precondition import test, prefer a Bee-DS Toolkit component family that is definitely needed for the target work, such as:
+- the main button family expected on the screen
+- the field family for the section being migrated
+- a common structural primitive if many sections are being migrated
+
+If the Bee-DS import fails, stop immediately, classify the affected work as `blocked`, and report the exact import error.
+
+### Family Selection Rules
+
+Choose the Bee-DS family first, then the variant.
+
+Buttons:
+- use `Secondary button` when the target has a visible border or medium emphasis
+- use `Tertiary button` for lower-emphasis actions with lighter chrome
+- use `Primary button` only for the dominant call-to-action
+- do not assume you can convert one Bee family into another by setting a variant property alone
+
+Inputs and dropdowns:
+- prefer Bee-DS field titles inside the component over detached nearby text labels when the component already supports a title or header
+- verify whether the visible title comes from the component header or from stray text outside the instance
+- if the Bee instance already renders the intended title, remove or hide any detached duplicate text beside it
+
+Icons:
+- prefer Bee icons from `Bee-DS Icon Library`
+- when an instance swap property expects an icon node reference, verify whether it needs an imported node ID instead of a component key
+- do not assume icon slots are interchangeable across Bee-DS component families
+
+### Validation Additions
+
+During the base skill's validation steps, add these Bee-specific checks:
+- after any Bee family change, inspect the new instance's actual `componentProperties`, visible descendant `TEXT` nodes, and visible descendant `FRAME` nodes
+- for Bee inputs and dropdowns, verify both the title text and the visibility of the enclosing header container
+- confirm detached labels are removed only after the Bee instance itself renders the intended copy
+- confirm icon swaps actually took effect and did not silently stay on the default icon
+
+## Bee-DS Working Assumptions
+
+- Bee-DS migrations should end in real library-backed instances, not visual approximations
+- published Bee-DS component families may have different property keys even when they look similar
+- Bee-DS inputs and dropdowns often carry their own internal title or label structure, so detached text outside the instance is a common migration artifact
+- Bee-DS button family changes are not just style changes; `Secondary button` and `Tertiary button` are different replacement targets
+
+## Bee-DS-Specific Pitfalls
+
+### Detached Labels Beside Fields
+
+Common symptom:
+- the input or dropdown appears correct internally
+- the screen still shows a duplicate `ID`, `ID type`, or helper label nearby
+
+Required response:
+- inspect the stable parent group or frame
+- identify detached sibling text nodes
+- remove or hide them only after the Bee-DS instance renders the intended copy itself
+
+### Hidden Header Containers In Dropdowns Or Inputs
+
+Common symptom:
+- the property says the title text is correct
+- the visible title is missing because the container frame is hidden
+
+Required response:
+- inspect both the text node and its enclosing header or title frame
+- verify container visibility, not only the text value
+
+### Cross-Family Button Swaps
+
+Common symptom:
+- a button should become `Secondary button`, but the migrated result still behaves like the old family or keeps the wrong label or icon defaults
+
+Required response:
+- import or create a true Bee-DS `Secondary button` instance
+- inspect its actual property keys
+- patch label, icon visibility, icon swap, and state on that exact instance
+- only then remove the previous button
+
+### Icon Swap Type Mismatch
+
+Common symptom:
+- a Bee-DS icon swap property rejects a component key or silently stays on the default icon
+
+Required response:
+- inspect the exact property type
+- if needed, import the icon and use the imported icon node ID rather than the component key
+
+## Bee-DS Writing Rules
+
+- prefer Bee-DS Toolkit over older Bee-DS libraries unless the user explicitly wants the fallback
+- prefer exact component or component-set keys over name-only matching
+- do not report success until the Bee-DS instance, visible text, and surrounding footprint all agree
+- if a Bee-specific rule conflicts with the base skill's generic assumption, follow the Bee-specific rule and call out the reason
+
+## Deliverable Additions
+
+Use the base skill's deliverable format. When helpful, label the results with Bee-specific terminology:
+- `Bee-DS swapped`: sections replaced with Bee-DS Toolkit instances
+- `Bee-DS composed`: sections rebuilt from Bee-DS primitives
+- `Bee-DS cleanup`: detached text or wrappers removed around successfully migrated sections
+- `Blocked`: anything Bee-DS could not support, with the exact reason
