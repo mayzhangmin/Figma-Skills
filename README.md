@@ -9,6 +9,44 @@ This is the canonical workflow for reconnecting existing Figma designs to a publ
 
 ---
 
+## Companion Skill: Review + Fix
+
+For teams that want a tighter review-and-repair loop, this repo also includes a dedicated companion skill:
+
+- `review-and-fix-design-system`
+
+Use this skill when you want to start from a Figma link, identify the highest-signal design-system findings first, then repair one approved finding in a narrower follow-up pass.
+
+### Prompt Format
+
+`Use Review And Fix Design System [review-and-fix-design-system] on this Figma link: <FIGMA_URL>`
+
+This prompt is intended to:
+
+1. audit the target against the intended design system
+2. report concrete findings with evidence and priority
+3. fix one approved high-signal finding without expanding into unrelated redesign work
+
+You can also split the flow into two separate passes:
+
+1. `Review this Figma link with [review-and-fix-design-system]: <FIGMA_URL>`
+2. `Fix this exact finding with [fix-design-system-finding]: <FIGMA_URL>`
+
+### Scope Note
+
+In current usage, the fix step is often guided by Bee design system guidance. That means this companion skill can be generally useful for design-system audit and repair, while still being Bee-guided by default unless another guidance layer is explicitly substituted.
+
+The fix step should stay narrow. It is not meant to:
+
+- create new design-system components or component sets
+- redefine the source library architecture
+- invent new tokens, naming schemes, or governance rules
+- widen into broad visual redesign
+
+Use this skill for audit-plus-repair. Use the main `apply-design-system` workflow when the task becomes a broader multi-section reconnect or system migration.
+
+---
+
 ## What's New in This Version
 
 This enhanced version addresses four specific real-world migration failures that teams encountered in production:
@@ -304,6 +342,8 @@ This skill is based on real migration failures. If you encounter a new failure m
 
 - **Full skill:** `apply-design-system.md` (canonical workflow)
 - **Related skills:**
+   - `review-and-fix-design-system.md` (review, then fix one approved finding)
+   - `review-and-fix-bee-ds.md` (Bee-specific review, then fix one approved finding)
   - `fix-design-system-finding.md` (single-section fixes)
   - `audit-design-system.md` (discovery)
 - **Product overlays:** Inherit this skill, add system-specific rules only
