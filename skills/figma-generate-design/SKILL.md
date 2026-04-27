@@ -316,6 +316,12 @@ Use the same term as [apply-design-system](../apply-design-system/SKILL.md): `Se
 
 Do not assume a text override failed just because the canvas or screenshot still shows placeholder copy.
 
+Before you classify a stale label as repaint-pending, run a display-path sanity check:
+- confirm the intended copy is present on the node that is actually visible in the section, not only on a hidden alternate slot, masked branch, or detached helper layer
+- inspect any visibility-driving booleans or variants that can swap which nested label is displayed
+- inspect sibling and nearby detached text nodes in the section footprint so you do not mistake an old overlay label for a failed instance override
+- if the intended copy exists only in a hidden branch or the visible branch is still showing defaults, this is a display-path problem, not a repaint problem
+
 Evidence levels:
 - `setProperties()` proves the override request was sent
 - visible descendant `TEXT` nodes prove the intended copy exists in the live instance
@@ -367,6 +373,34 @@ for (const instance of updatedInstances) {
 
 Do not switch to manual replacement too early. If the live visible text is already correct, first treat it as a repaint problem and exhaust the `Section Repaint Pass`.
 
+#### Layer section spacing instead of flattening it
+
+Do not let one section-level auto-layout gap control every distance inside the section.
+
+Use gap ownership deliberately:
+- the page wrapper controls spacing between major sections
+- each section frame controls spacing between the section's logical blocks, such as header, body, and footer
+- repeated items, such as tiles, cards, table rows, pills, or list entries, must sit inside their own stack frame with their own gap
+- do not use the outer section gap to space repeated children when the section also contains headers, helper copy, or footers
+
+If a screenshot shows a section header sitting closer to the section edge than the repeated items sit to each other, you need at least two auto-layout layers: an outer section container and an inner repeated-items stack.
+
+When gap drift appears after converting a section to auto-layout, fix the frame hierarchy first. Do not keep tuning one shared gap value to solve two different spacing relationships.
+
+#### Auto Layout Definition Of Done
+
+Do not treat a section as structurally complete just because it looks roughly correct in one screenshot.
+
+For each rebuilt section, verify all of the following before you move on:
+- the section lives inside the intended page wrapper, not as a top-level orphan that will be reparented later
+- the section uses auto-layout when it represents a logical stack or row rather than free-positioned artwork
+- major section containers use `layoutSizingVertical = "HUG"` unless the screenshot clearly requires a fixed height
+- children that should stretch with the section use `layoutSizingHorizontal = "FILL"` only after they are appended into an auto-layout parent
+- repeated content has its own nested stack instead of sharing the section container's gap
+- there are no absolute-positioned leftovers, detached labels, or duplicate helper frames still occupying the same section footprint
+
+If a section fails this definition of done, fix the structure before polishing typography, token bindings, or offsets.
+
 #### Read defaults carefully
 
 When translating code components to Figma instances, check the component's default prop values in the source code, not just what's explicitly passed. For example, `<Button size="small">Register</Button>` with no variant prop — check the component definition to find `variant = "primary"` as the default. Selecting the wrong variant (e.g., Neutral instead of Primary) produces a visually incorrect result that's easy to miss.
@@ -384,6 +418,20 @@ When translating from a screenshot, you often do not have those defaults directl
 
 **Never hardcode hex colors or pixel spacing** when a design system variable exists. Use `setBoundVariable` for spacing/radii and `setBoundVariableForPaint` for colors. Apply text styles with `node.textStyleId` and effect styles with `node.effectStyleId`.
 
+#### Token binding priority
+
+Bind tokens at the structural layer that actually owns the visual responsibility.
+
+Priority order:
+1. Page or screen background tokens belong on the outer page wrapper or canvas-owning frame.
+2. Section background tokens belong on the section container that defines that block's footprint.
+3. Inner surface tokens, such as white cards inside a tinted section, belong on the content wrapper inside the section.
+4. Component internals should keep their library-owned tokens unless the component itself is the real semantic owner of that fill, stroke, radius, or spacing.
+
+Do not push a background token down into a nested component just because that is the first node with a fill. First decide which frame is supposed to own the screenshot's visible surface.
+
+When in doubt, prefer tokenizing the wrapper you created manually rather than overriding a published component's internal styling.
+
 ### Step 5: Validate the Full Screen
 
 After composing all sections, call `get_screenshot` on the full page frame and compare against the source. Fix any issues with targeted `use_figma` calls — don't rebuild the entire screen.
@@ -397,9 +445,12 @@ After composing all sections, call `get_screenshot` on the full page frame and c
 
 If a section screenshot still shows placeholder copy after overrides:
 1. Inspect the live visible descendant `TEXT` nodes before assuming the write failed.
-2. If descendant text is correct, treat the mismatch as repaint-pending.
-3. Run the `Section Repaint Pass` on the section's actual page — **this means clicking each visible TEXT node individually, not just toggling visibility.** Re-take the section screenshot after.
-4. Only escalate to a manual wrapper or fallback composition after the full click-based repaint pass fails to change the rendered output.
+2. Run the display-path sanity check to confirm the intended copy is on the actually visible branch, not on a hidden slot or detached sibling.
+3. If the visible branch text is correct, treat the mismatch as repaint-pending.
+4. Run the `Section Repaint Pass` on the section's actual page — **this means clicking each visible TEXT node individually, not just toggling visibility.** Re-take the section screenshot after.
+5. Only escalate to a manual wrapper or fallback composition after the visible display path is correct and the full click-based repaint pass still fails to change the rendered output.
+
+If the structure and component choice are already correct but the rebuilt screen still needs screenshot-level spacing, container, or background convergence, switch to [layout-convergence](../layout-convergence/SKILL.md) instead of reopening component selection.
 
 ### Step 6: Updating an Existing Screen
 

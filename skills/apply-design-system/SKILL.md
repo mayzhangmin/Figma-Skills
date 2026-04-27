@@ -259,28 +259,48 @@ Dry-run guidance:
 - Treat font errors from touching the old node as a signal to change validation strategy, not as automatic evidence that the migration is blocked.
 
 Repaint guidance:
-- If descendant `TEXT` nodes are correct but the section still renders placeholder copy, first classify the problem as repaint-pending rather than failed migration.
+- First separate display-path failures from repaint failures.
 - Prefer updating the visible descendant `TEXT` nodes directly when exposed text properties do not repaint reliably.
-- Run the refresh recipe on the section's actual page before deciding that the repaint is blocked.
+- Only classify the section as repaint-pending after you verify that the intended copy is already on the actually visible branch.
 
-Refresh recipe:
-1. Write the intended copy onto the live visible descendant `TEXT` nodes.
-2. Resolve the section's containing page and call `await figma.setCurrentPageAsync(page)`.
-3. Select each updated instance on that page, one at a time.
-4. Call `figma.viewport.scrollAndZoomIntoView([node])` for the selected node.
-5. If the canvas is still stale, toggle `node.visible = false` and then `node.visible = true`.
-6. Re-run the close-up screenshot for that section before deciding whether the repaint worked.
+Display-path versus repaint decision tree:
+1. Write the intended copy to the live instance.
+2. Re-discover the live node IDs from the current section. Do not trust IDs captured before a swap, rebuild, or variant change.
+3. Inspect the visible descendant `TEXT` nodes and visibility-driving frames, masks, booleans, or variants on the live branch.
+4. Inspect sibling or nearby detached labels in the same section footprint.
+5. If the intended copy is missing from the visible branch, or only exists on a hidden branch, classify the issue as `display-path-mismatch` and fix the structure or variant selection first.
+6. If the visible branch text is correct but the canvas or screenshot is still stale, classify the issue as `repaint-pending` and run the repaint pass.
+
+Section Repaint Pass:
+1. Resolve the section's containing page and call `await figma.setCurrentPageAsync(page)`.
+2. Select each updated instance on that page and call `figma.viewport.scrollAndZoomIntoView([node])`.
+3. For every visible descendant `TEXT` node inside that instance, run this sequence:
+   - `figma.currentPage.selection = [textNode]`
+   - `figma.viewport.scrollAndZoomIntoView([textNode])`
+   - `figma.currentPage.selection = [parentInstance]`
+   - `figma.currentPage.selection = [textNode]`
+4. Re-select the parent instance and re-run `scrollAndZoomIntoView`.
+5. Re-run the close-up screenshot for that section before deciding whether the repaint worked.
 
 Example repaint pass:
 
 ```js
 await figma.setCurrentPageAsync(targetPage);
 
-for (const node of updatedNodes) {
-  figma.currentPage.selection = [node];
-  figma.viewport.scrollAndZoomIntoView([node]);
-  node.visible = false;
-  node.visible = true;
+for (const instance of updatedInstances) {
+  figma.currentPage.selection = [instance];
+  figma.viewport.scrollAndZoomIntoView([instance]);
+
+  const textNodes = instance.findAll(n => n.type === 'TEXT' && n.visible);
+  for (const textNode of textNodes) {
+    figma.currentPage.selection = [textNode];
+    figma.viewport.scrollAndZoomIntoView([textNode]);
+    figma.currentPage.selection = [instance];
+    figma.currentPage.selection = [textNode];
+  }
+
+  figma.currentPage.selection = [instance];
+  figma.viewport.scrollAndZoomIntoView([instance]);
 }
 ```
 
@@ -351,8 +371,9 @@ Screenshot validation:
 
 If the screenshot still shows stale placeholder text but the live descendant `TEXT` nodes are correct:
 1. Re-run validation on the section's actual page, not whichever page the plugin last had open.
-2. Run the refresh recipe and re-check the screenshot.
-3. Report the result as `repaint-pending` rather than `blocked` when the write is correct but the canvas still has not refreshed.
+2. Confirm the correct copy is on the visible display path rather than a hidden slot or detached sibling.
+3. Run the `Section Repaint Pass` and re-check the screenshot.
+4. Report the result as `repaint-pending` rather than `blocked` when the write is correct but the canvas still has not refreshed.
 
 After all sections are complete:
 - take a full-frame screenshot and compare with the original backup
